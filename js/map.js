@@ -211,8 +211,11 @@ const WISEMap = (() => {
       onEachFeature: _onEachFeature,
     }).addTo(_map);
 
-    // Apply colors after layer is built (works around Leaflet closure timing)
-    _applyColors();
+    // Defer color application until after Leaflet finishes rendering
+    setTimeout(() => {
+      _map.invalidateSize();
+      _applyColors();
+    }, 50);
   }
 
   // ── Apply colors to all layers ──────────────────────────

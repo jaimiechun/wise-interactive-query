@@ -5,7 +5,14 @@
 (async function init() {
   const $loading = document.getElementById('map-loading');
 
-  // ── 1. Load data & GeoJSON in parallel ────────────────
+  // ── 1. Init map first (needs DOM to be ready) ──────────
+  WISEMap.init('map', (iso3, country) => {
+    const filters = WISEFilters.getFilters();
+    WISESidebar.open(iso3, country, filters);
+    _selectedCountry = { iso3, country };
+  });
+
+  // ── 2. Load data & GeoJSON in parallel ─────────────────
   try {
     await Promise.all([
       DataStore.load('data/wise_data.json'),
@@ -22,13 +29,6 @@
     `;
     return;
   }
-
-  // ── 2. Init map ────────────────────────────────────────
-  WISEMap.init('map', (iso3, country) => {
-    const filters = WISEFilters.getFilters();
-    WISESidebar.open(iso3, country, filters);
-    _selectedCountry = { iso3, country };
-  });
 
   // ── 3. Init filters ────────────────────────────────────
   WISEFilters.init(
