@@ -51,36 +51,32 @@
         <div class="filter-item">
           <label class="filter-label" for="filter-indicator">Indicator</label>
           <select id="filter-indicator" class="filter-select">
-            <option value="overall">Overall Index</option>
-            <option value="access">Access</option>
-            <option value="quality">Quality</option>
-            <option value="affordability">Affordability</option>
+            <option value="iwise12">IWISE ≥12 (% Water Insecure)</option>
+            <option value="any_WI">Any Water Insecurity (%)</option>
+            <option value="iwisescore">Mean IWISE Score</option>
+            <option value="INDEX_CR">Corruption Index</option>
+            <option value="INDEX_LEC">Local Economic Confidence Index</option>
+            <option value="INDEX_LE">Life Evaluation Index</option>
+            <option value="INCOME_4">Per Capita Income (Intl $)</option>
           </select>
         </div>
 
         <div class="filter-item">
           <label class="filter-label" for="filter-year">Year</label>
           <select id="filter-year" class="filter-select">
-            <option value="2023">2023</option>
+            <option value="2025">2025</option>
             <option value="2022">2022</option>
-            <option value="2021">2021</option>
             <option value="2020">2020</option>
-            <option value="2019">2019</option>
-            <option value="2018">2018</option>
-            <option value="2017">2017</option>
-            <option value="2016">2016</option>
-            <option value="2015">2015</option>
           </select>
         </div>
 
         <div class="filter-item">
           <label class="filter-label" for="filter-demographic">Group</label>
           <select id="filter-demographic" class="filter-select">
-            <option value="all">All households</option>
+            <option value="all">All respondents</option>
             <option value="urban">Urban</option>
             <option value="rural">Rural</option>
             <option value="women">Women</option>
-            <option value="children">Children</option>
           </select>
         </div>
       </div>
@@ -110,7 +106,7 @@
 
       <!-- Legend -->
       <div id="map-legend" class="map-legend">
-        <div class="legend-title" id="legend-title">Overall Water Insecurity (%)</div>
+        <div class="legend-title" id="legend-title">IWISE ≥12 (% Water Insecure)</div>
         <div class="legend-scale" id="legend-scale"></div>
         <div class="legend-labels">
           <span>Low</span>

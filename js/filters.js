@@ -8,10 +8,13 @@ const WISEFilters = (() => {
   let _searchDebounce = null;
 
   const INDICATOR_LABELS = {
-    overall: 'Overall Water Insecurity (%)',
-    access:  'Access Insecurity (%)',
-    quality: 'Quality Insecurity (%)',
-    affordability: 'Affordability Insecurity (%)',
+    iwise12:    'IWISE ≥12 (% Water Insecure)',
+    any_WI:     'Any Water Insecurity (%)',
+    iwisescore: 'Mean IWISE Score',
+    INDEX_CR:   'Corruption Index',
+    INDEX_LEC:  'Local Economic Confidence Index',
+    INDEX_LE:   'Life Evaluation Index',
+    INCOME_4:   'Per Capita Income (Intl $)',
   };
 
   // ── Init ───────────────────────────────────────────────

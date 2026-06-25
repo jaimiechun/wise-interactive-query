@@ -10,17 +10,20 @@ const WISEMap = (() => {
   let _onCountryClick = null;      // callback(iso3, country)
   let _geojsonData = null;
 
-  // Color scale thresholds (0–100 scale)
+  // Color scale (normalized 0–1 t value)
   const COLOR_STOPS = [
-    [0,   '#f0f9ff'],
-    [10,  '#bae6fd'],
-    [20,  '#7dd3fc'],
-    [35,  '#38bdf8'],
-    [50,  '#0ea5e9'],
-    [65,  '#0284c7'],
-    [80,  '#0369a1'],
-    [100, '#1e3a5f'],
+    [0,    '#f0f9ff'],
+    [0.1,  '#bae6fd'],
+    [0.2,  '#7dd3fc'],
+    [0.35, '#38bdf8'],
+    [0.5,  '#0ea5e9'],
+    [0.65, '#0284c7'],
+    [0.8,  '#0369a1'],
+    [1.0,  '#1e3a5f'],
   ];
+
+  let _colorMin = 0;
+  let _colorMax = 100;
 
   const NO_DATA_COLOR  = '#1e293b';
   const HOVER_WEIGHT   = 2;
@@ -65,13 +68,15 @@ const WISEMap = (() => {
   function getColor(value) {
     if (value === null || value === undefined) return NO_DATA_COLOR;
 
-    // Find surrounding stops
+    const range = _colorMax - _colorMin;
+    const t = range > 0 ? Math.max(0, Math.min(1, (value - _colorMin) / range)) : 0;
+
     for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
       const [lo, loColor] = COLOR_STOPS[i];
       const [hi, hiColor] = COLOR_STOPS[i + 1];
-      if (value <= hi) {
-        const t = (value - lo) / (hi - lo);
-        return lerpColor(loColor, hiColor, t);
+      if (t <= hi) {
+        const frac = (hi - lo) > 0 ? (t - lo) / (hi - lo) : 0;
+        return lerpColor(loColor, hiColor, frac);
       }
     }
     return COLOR_STOPS[COLOR_STOPS.length - 1][1];
@@ -93,7 +98,7 @@ const WISEMap = (() => {
 
   // ── Feature styling ─────────────────────────────────────
   function _style(feature) {
-    const iso3 = feature.properties.ISO_A3 || feature.properties.iso_a3 || '';
+    const iso3 = feature.properties['ISO3166-1-Alpha-3'] || feature.properties.ISO_A3 || feature.properties.iso_a3 || '';
     const value = _currentSlice.get(iso3) ?? null;
     const isSelected = iso3 === _selectedIso3;
 
@@ -109,17 +114,33 @@ const WISEMap = (() => {
   // ── Tooltip ─────────────────────────────────────────────
   const $tooltip = document.getElementById('map-tooltip');
 
+  const _indicatorLabels = {
+    iwise12:    'IWISE ≥12 (% Water Insecure)',
+    any_WI:     'Any Water Insecurity (%)',
+    iwisescore: 'Mean IWISE Score',
+    INDEX_CR:   'Corruption Index',
+    INDEX_LEC:  'Local Economic Confidence Index',
+    INDEX_LE:   'Life Evaluation Index',
+    INCOME_4:   'Per Capita Income (Intl $)',
+  };
+  const _pctIndicators = new Set(['iwise12', 'any_WI']);
+  const _demoLabels = {
+    all: 'All respondents', urban: 'Urban', rural: 'Rural', women: 'Women',
+  };
+
+  function _unitFor(indicator) {
+    if (_pctIndicators.has(indicator)) return '%';
+    if (indicator === 'iwisescore') return ' pts';
+    if (indicator === 'INCOME_4') return ' $';
+    return '';
+  }
+
   function _showTooltip(e, iso3, country, value, indicator, year, demo) {
-    const labels = {
-      overall: 'Overall Index', access: 'Access', quality: 'Quality', affordability: 'Affordability'
-    };
-    const demoLabels = {
-      all: 'All households', urban: 'Urban', rural: 'Rural', women: 'Women', children: 'Children'
-    };
+    const unit = _unitFor(indicator);
     $tooltip.innerHTML = `
       <div class="tooltip-country">${country}</div>
-      <div class="tooltip-value">${value !== null ? value.toFixed(1) + '%' : 'No data'}</div>
-      <div class="tooltip-label">${labels[indicator] || indicator} · ${demoLabels[demo] || demo} · ${year}</div>
+      <div class="tooltip-value">${value !== null ? value.toFixed(1) + unit : 'No data'}</div>
+      <div class="tooltip-label">${_indicatorLabels[indicator] || indicator} · ${_demoLabels[demo] || demo} · ${year}</div>
     `;
     $tooltip.style.display = 'block';
     _moveTooltip(e);
@@ -141,7 +162,7 @@ const WISEMap = (() => {
   }
 
   // ── Event handlers ──────────────────────────────────────
-  let _currentFilters = { year: 2023, indicator: 'overall', demographic: 'all' };
+  let _currentFilters = { year: 2025, indicator: 'iwise12', demographic: 'all' };
 
   function _onEachFeature(feature, layer) {
     const iso3    = feature.properties.ISO_A3 || feature.properties.iso_a3 || '';
@@ -167,7 +188,7 @@ const WISEMap = (() => {
       },
       click() {
         _selectedIso3 = iso3;
-        _geojsonLayer.setStyle(_style);   // refresh all styles
+        _applyColors();
         if (_onCountryClick) _onCountryClick(iso3, country);
       },
     });
@@ -177,6 +198,9 @@ const WISEMap = (() => {
   function renderLayer(geojsonData, slice, filters) {
     _currentSlice = slice;
     _currentFilters = { ...filters };
+    const vals = [...slice.values()];
+    _colorMin = vals.length ? Math.min(...vals) : 0;
+    _colorMax = vals.length ? Math.max(...vals) : 100;
 
     if (_geojsonLayer) {
       _geojsonLayer.remove();
@@ -186,29 +210,50 @@ const WISEMap = (() => {
       style: _style,
       onEachFeature: _onEachFeature,
     }).addTo(_map);
+
+    // Apply colors after layer is built (works around Leaflet closure timing)
+    _applyColors();
+  }
+
+  // ── Apply colors to all layers ──────────────────────────
+  function _applyColors() {
+    if (!_geojsonLayer) return;
+    _geojsonLayer.eachLayer(layer => {
+      const iso3 = layer.feature?.properties?.['ISO3166-1-Alpha-3'] || '';
+      const isSelected = iso3 === _selectedIso3;
+      const value = _currentSlice.get(iso3) ?? null;
+      layer.setStyle({
+        fillColor: isSelected ? SELECTED_COLOR : getColor(value),
+        fillOpacity: 0.82,
+        color: isSelected ? '#e879f9' : '#1e3a5f',
+        weight: isSelected ? 2 : DEFAULT_WEIGHT,
+        opacity: 1,
+      });
+    });
   }
 
   // ── Update colors only (no full re-render) ──────────────
   function updateColors(slice, filters) {
     _currentSlice = slice;
     _currentFilters = { ...filters };
-    if (_geojsonLayer) {
-      _geojsonLayer.setStyle(_style);
-    }
+    const vals = [...slice.values()];
+    _colorMin = vals.length ? Math.min(...vals) : 0;
+    _colorMax = vals.length ? Math.max(...vals) : 100;
+    _applyColors();
   }
 
   // ── Fly to country ──────────────────────────────────────
   function flyToCountry(iso3, country) {
     if (!_geojsonLayer) return;
     _geojsonLayer.eachLayer(layer => {
-      const fIso3 = layer.feature?.properties?.ISO_A3 || layer.feature?.properties?.iso_a3 || '';
+      const fIso3 = layer.feature?.properties?.['ISO3166-1-Alpha-3'] || layer.feature?.properties?.ISO_A3 || layer.feature?.properties?.iso_a3 || '';
       if (fIso3 === iso3) {
         const bounds = layer.getBounds();
         if (bounds.isValid()) {
           _map.flyToBounds(bounds, { padding: [80, 80], duration: 1.2, maxZoom: 6 });
         }
         _selectedIso3 = iso3;
-        _geojsonLayer.setStyle(_style);
+        _applyColors();
         if (_onCountryClick) _onCountryClick(iso3, country);
       }
     });
@@ -217,7 +262,7 @@ const WISEMap = (() => {
   // ── Deselect ────────────────────────────────────────────
   function deselect() {
     _selectedIso3 = null;
-    if (_geojsonLayer) _geojsonLayer.setStyle(_style);
+    _applyColors();
   }
 
   return {
