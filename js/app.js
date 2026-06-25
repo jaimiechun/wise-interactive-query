@@ -67,21 +67,6 @@
     _selectedCountry = null;
   });
 
-  // ── 6. Export CSV ──────────────────────────────────────
-  document.getElementById('btn-export').addEventListener('click', () => {
-    const filters = WISEFilters.getFilters();
-    const csv     = DataStore.exportCSV(filters.year, filters.indicator, filters.demographic);
-    const blob    = new Blob([csv], { type: 'text/csv' });
-    const url     = URL.createObjectURL(blob);
-    const a       = document.createElement('a');
-    a.href        = url;
-    a.download    = `wise_${filters.indicator}_${filters.year}_${filters.demographic}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  });
-
   // ── Helpers ────────────────────────────────────────────
   let _selectedCountry = null;
 
